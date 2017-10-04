@@ -43,13 +43,13 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         guard let ciImage = CIImage(image: uiImage)
             else { fatalError("can't create CIImage from UIImage") }
         let orientation = CGImagePropertyOrientation(uiImage.imageOrientation)
-        inputImage = ciImage.applyingOrientation(Int32(orientation.rawValue))
+        inputImage = ciImage.oriented(forExifOrientation: Int32(orientation.rawValue))
 
         // Show the image in the UI.
         imageView.image = uiImage
 
         // Run the rectangle detector, which upon completion runs the ML classifier.
-        let handler = VNImageRequestHandler(ciImage: ciImage, orientation: Int32(orientation.rawValue))
+        let handler = VNImageRequestHandler(ciImage: ciImage, orientation: CGImagePropertyOrientation(rawValue: UInt32(Int32(orientation.rawValue)))!)
         DispatchQueue.global(qos: .userInteractive).async {
             do {
                 try handler.perform([self.rectanglesRequest])
@@ -105,18 +105,18 @@ class ViewController: UIViewController, UIImagePickerControllerDelegate, UINavig
         let bottomLeft = detectedRectangle.bottomLeft.scaled(to: imageSize)
         let bottomRight = detectedRectangle.bottomRight.scaled(to: imageSize)
         let correctedImage = inputImage
-            .cropping(to: boundingBox)
-            .applyingFilter("CIPerspectiveCorrection", withInputParameters: [
+            .cropped(to: boundingBox)
+            .applyingFilter("CIPerspectiveCorrection", parameters: [
                 "inputTopLeft": CIVector(cgPoint: topLeft),
                 "inputTopRight": CIVector(cgPoint: topRight),
                 "inputBottomLeft": CIVector(cgPoint: bottomLeft),
                 "inputBottomRight": CIVector(cgPoint: bottomRight)
             ])
-            .applyingFilter("CIColorControls", withInputParameters: [
+            .applyingFilter("CIColorControls", parameters: [
                 kCIInputSaturationKey: 0,
                 kCIInputContrastKey: 32
             ])
-            .applyingFilter("CIColorInvert", withInputParameters: nil)
+            .applyingFilter("CIColorInvert", parameters: [:])
 
         // Show the pre-processed image
         DispatchQueue.main.async {
